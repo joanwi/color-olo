@@ -1,0 +1,265 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Mixing Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+  <div id="game-container" class="bg-white p-6 rounded-lg shadow-lg text-center">
+    <h1 class="text-2xl font-bold mb-4">Color Mixing Lab</h1>
+    <p class="mb-2">Score: <span id="score">0</span></p>
+    <p class="mb-2">Time Left: <span id="timer">60</span>s</p>
+    <div class="flex justify-center gap-4 mb-4">
+      <div id="target-color" class="w-32 h-32 rounded"></div>
+      <div id="player-color" class="w-32 h-32 rounded"></div>
+    </div>
+    <div class="mb-4">
+      <div class="block mb-2">
+        <label>R: </label>
+        <button id="r-minus" class="bg-gray-300 text-black px-2 py-1 rounded hover:bg-gray-400">-</button>
+        <input id="r-slider" type="range" min="0" max="255" value="0" class="w-32 align-middle">
+        <button id="r-plus" class="bg-gray-300 text-black px-2 py-1 rounded hover:bg-gray-400">+</button>
+        <span id="r-value" class="ml-2 text-lg">0</span>
+      </div>
+      <div class="block mb-2">
+        <label>G: </label>
+        <button id="g-minus" class="bg-gray-300 text-black px-2 py-1 rounded hover:bg-gray-400">-</button>
+        <input id="g-slider" type="range" min="0" max="255" value="0" class="w-32 align-middle">
+        <button id="g-plus" class="bg-gray-300 text-black px-2 py-1 rounded hover:bg-gray-400">+</button>
+        <span id="g-value" class="ml-2 text-lg">0</span>
+      </div>
+      <div class="block mb-2">
+        <label>B: </label>
+        <button id="b-minus" class="bg-gray-300 text-black px-2 py-1 rounded hover:bg-gray-400">-</button>
+        <input id="b-slider" type="range" min="0" max="255" value="0" class="w-32 align-middle">
+        <button id="b-plus" class="bg-gray-300 text-black px-2 py-1 rounded hover:bg-gray-400">+</button>
+        <span id="b-value" class="ml-2 text-lg">0</span>
+      </div>
+    </div>
+    <button id="submit-button" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Submit</button>
+    <button id="start-button" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Start Game</button>
+    <p id="message" class="mt-4 text-lg font-semibold"></p>
+    <div id="target-rgb" class="mt-4 hidden">
+      <p class="text-lg font-semibold">Target Color RGB: <span id="target-rgb-value"></span></p>
+    </div>
+    <div id="history" class="mt-4 hidden">
+      <p class="text-lg font-semibold">Submission History:</p>
+      <table class="table-auto mx-auto mt-2 border-collapse">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="px-4 py-2 border">Attempt</th>
+            <th class="px-4 py-2 border">RGB</th>
+            <th class="px-4 py-2 border">Match %</th>
+          </tr>
+        </thead>
+        <tbody id="history-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const targetColorDiv = document.getElementById('target-color');
+    const playerColorDiv = document.getElementById('player-color');
+    const rSlider = document.getElementById('r-slider');
+    const gSlider = document.getElementById('g-slider');
+    const bSlider = document.getElementById('b-slider');
+    const rValue = document.getElementById('r-value');
+    const gValue = document.getElementById('g-value');
+    const bValue = document.getElementById('b-value');
+    const rMinus = document.getElementById('r-minus');
+    const rPlus = document.getElementById('r-plus');
+    const gMinus = document.getElementById('g-minus');
+    const gPlus = document.getElementById('g-plus');
+    const bMinus = document.getElementById('b-minus');
+    const bPlus = document.getElementById('b-plus');
+    const scoreSpan = document.getElementById('score');
+    const timerSpan = document.getElementById('timer');
+    const submitButton = document.getElementById('submit-button');
+    const startButton = document.getElementById('start-button');
+    const messageP = document.getElementById('message');
+    const targetRgbDiv = document.getElementById('target-rgb');
+    const targetRgbValue = document.getElementById('target-rgb-value');
+    const historyDiv = document.getElementById('history');
+    const historyTable = document.getElementById('history-table');
+
+    let score = 0;
+    let timeLeft = 60;
+    let gameActive = false;
+    let timerInterval;
+    let targetColor = [];
+    let submissionHistory = [];
+
+    // Generate random RGB color
+    function generateRandomColor() {
+      const r = Math.floor(Math.random() * 256);
+      const g = Math.floor(Math.random() * 256);
+      const b = Math.floor(Math.random() * 256);
+      return [r, g, b];
+    }
+
+    // Calculate color similarity
+    function calculateSimilarity(target, player) {
+      const [tr, tg, tb] = target;
+      const [pr, pg, pb] = player;
+      const diff = Math.sqrt((tr - pr) ** 2 + (tg - pg) ** 2 + (tb - pb) ** 2);
+      const maxDiff = Math.sqrt(255 ** 2 * 3);
+      return (1 - diff / maxDiff) * 100;
+    }
+
+    // Update player color and RGB values
+    function updatePlayerColor() {
+      const r = rSlider.value;
+      const g = gSlider.value;
+      const b = bSlider.value;
+      playerColorDiv.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      rValue.textContent = r;
+      gValue.textContent = g;
+      bValue.textContent = b;
+    }
+
+    // Adjust slider value with buttons
+    function adjustSlider(slider, delta) {
+      const newValue = Math.max(0, Math.min(255, parseInt(slider.value) + delta));
+      slider.value = newValue;
+      updatePlayerColor();
+    }
+
+    // Show target RGB
+    function showTargetRgb() {
+      targetRgbValue.textContent = targetColor.join(', ');
+      targetRgbDiv.classList.remove('hidden');
+    }
+
+    // Show submission history
+    function showHistory() {
+      historyTable.innerHTML = '';
+      submissionHistory.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-4 py-2 border">${index + 1}</td>
+          <td class="px-4 py-2 border">${entry.rgb.join(', ')}</td>
+          <td class="px-4 py-2 border">${entry.match.toFixed(2)}%</td>
+        `;
+        historyTable.appendChild(row);
+      });
+      historyDiv.classList.remove('hidden');
+    }
+
+    // Set up a new round
+    function setupRound() {
+      messageP.textContent = '';
+      targetRgbDiv.classList.add('hidden');
+      historyDiv.classList.add('hidden');
+      targetColor = generateRandomColor();
+      targetColorDiv.style.backgroundColor = `rgb(${targetColor.join(',')})`;
+      rSlider.value = 0;
+      gSlider.value = 0;
+      bSlider.value = 0;
+      updatePlayerColor();
+    }
+
+    // Check color match
+    function checkMatch() {
+      if (!gameActive) return;
+      const playerColor = [parseInt(rSlider.value), parseInt(gSlider.value), parseInt(bSlider.value)];
+      const similarity = calculateSimilarity(targetColor, playerColor);
+      submissionHistory.push({ rgb: playerColor, match: similarity });
+      if (similarity >= 95) {
+        score += 15;
+        messageP.textContent = 'Great Match! Next Round!';
+        messageP.className = 'mt-4 text-lg font-semibold text-green-500';
+        setupRound();
+      } else if (similarity < 80) {
+        score = Math.max(0, score - 5);
+        messageP.textContent = 'Not Quite! Try Again!';
+        messageP.className = 'mt-4 text-lg font-semibold text-red-500';
+      } else {
+        messageP.textContent = 'Close! Keep Adjusting!';
+        messageP.className = 'mt-4 text-lg font-semibold text-yellow-500';
+      }
+      scoreSpan.textContent = score;
+    }
+
+    // Start game
+    function startGame() {
+      score = 0;
+      timeLeft = 60;
+      submissionHistory = [];
+      scoreSpan.textContent = score;
+      timerSpan.textContent = timeLeft;
+      gameActive = true;
+      startButton.textContent = 'Restart Game';
+      messageP.textContent = '';
+      setupRound();
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timerSpan.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          gameActive = false;
+          messageP.textContent = `Game Over! Final Score: ${score}`;
+          messageP.className = 'mt-4 text-lg font-semibold text-blue-500';
+          showTargetRgb();
+          showHistory();
+        }
+      }, 1000);
+    }
+
+    // Event listeners
+    startButton.addEventListener('click', startGame);
+    submitButton.addEventListener('click', checkMatch);
+    rSlider.addEventListener('input', updatePlayerColor);
+    gSlider.addEventListener('input', updatePlayerColor);
+    bSlider.addEventListener('input', updatePlayerColor);
+    rMinus.addEventListener('click', () => adjustSlider(rSlider, -1));
+    rPlus.addEventListener('click', () => adjustSlider(rSlider, 1));
+    gMinus.addEventListener('click', () => adjustSlider(gSlider, -1));
+    gPlus.addEventListener('click', () => adjustSlider(gSlider, 1));
+    bMinus.addEventListener('click', () => adjustSlider(bSlider, -1));
+    bPlus.addEventListener('click', () => adjustSlider(bSlider, 1));
+  </script>
+</body>
+</html>

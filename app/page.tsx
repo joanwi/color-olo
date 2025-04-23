@@ -1,40 +1,36 @@
 import Image from "next/image";
 import ScienceContent from "@/components/ScienceContent";
-
+import ColorMixingGame from '@/components/ColorMixingGame';
+import Link from 'next/link';
 export default function Home() {
   return (
     <div>
-      {/* Hero Section */}
-      <section className="relative">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative z-10 py-16 sm:py-24 lg:py-32">
-            <div className="text-center lg:text-left">
-              <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
-                <span className="block">Discover the</span>
-                <span className="block text-emerald-600">New Color olo</span>
-              </h1>
-              <p className="mt-3 text-base text-gray-700 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                Scientists have discovered a revolutionary new color olo that challenges our understanding of human vision. Experience the future of color perception.
-              </p>
-              <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
-                <div className="rounded-md shadow">
-                  <a href="/science" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 md:py-4 md:text-lg md:px-10">
-                    Learn More
-                  </a>
-                </div>
-                <div className="mt-3 sm:mt-0 sm:ml-3">
-                  <a href="/experience" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-emerald-700 bg-white/80 hover:bg-white md:py-4 md:text-lg md:px-10">
-                    Experience Olo
-                  </a>
-                </div>
-              </div>
+      <section className="container mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 items-center">
+          <div className="text-center lg:text-left">
+            <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+              <span className="block">Discover the</span>
+              <span className="block text-emerald-600">New Color olo</span>
+            </h1>
+            <p className="mt-3 text-gray-700 text-lg max-w-xl lg:mx-0">
+              Scientists have discovered a revolutionary new color olo that challenges our understanding of human vision. Experience the future of color perception.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-4">
+              <Link href="/science" className="px-8 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-md text-lg font-medium">
+                Learn More
+              </Link>
+              <Link href="/experience" className="px-8 py-3 text-emerald-700 bg-white/80 hover:bg-white rounded-md text-lg font-medium">
+                Experience Olo
+              </Link>
             </div>
+          </div>
+          <div className="flex">
+            <ColorMixingGame />
           </div>
         </div>
       </section>
 
-        {/* Science Content */}
-        <ScienceContent />
+      <ScienceContent />
 
       {/* Features Section */}
       <div className="py-12">
@@ -84,8 +80,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-    
     </div>
   );
 }
